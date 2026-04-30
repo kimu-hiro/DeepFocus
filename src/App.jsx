@@ -1,56 +1,72 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import workIcon from "./assets/workIcon.png"
 import breakIcon from "./assets/breakIcon.png"
 import beepSound from "./assets/beepSound.mp3"
+import brownNoise from "./assets/brownNoise.mp3"
 import './index.css'
 
 
 function App() {
-  const [time, setTime] = useState(5);
-  const workTimeSec = 8;
-  const breakTimeSec = 5;
+
+  const exWorkTimeSec = 10;
+  const exBreakTimeSec = 5;
+  const workTimeSec = 2500;
+  const breakTimeSec = 300;
+
   //intが返る。
-  const [isRunning, setIsRunning] = useState(false);
+  const [time, setTime] = useState(exWorkTimeSec);
   //booleanが返る。初期値設定すること。１敗。
-  const [mode, setMode] = useState("work");
+  const [isRunning, setIsRunning] = useState(false);
   //work,breakを切り替える。
-  const [view, setView] = useState("timer");
+  const [mode, setMode] = useState("work");
   //timer, dashboardを切り替える。
-  const [isBeeping, setIsBeeping] = useState(false);
+  const [view, setView] = useState("timer");
   //Beep音が鳴っているかどうかの状態管理。
+  const [isBeeping, setIsBeeping] = useState(false);
+  //ブラウンノイズが流れるかどうかの状態管理。
+  const [isNoiseEnabled, setIsNoiseEnabled] = useState(true);
+
+
   const minutesMaterial = Math.trunc(time / 60);
   const secondsMaterial = time % 60;
   const minutes = String(minutesMaterial).padStart(2, "0");
   const seconds = String(secondsMaterial).padStart(2, "0");
   const beep = new Audio(beepSound);
+  const brownRef = useRef(new Audio(brownNoise));
+  const prevModeRef = useRef(mode);
+
 
   const handleStart = () => {
     beep.play();
     beep.pause();
     beep.currentTime = 0;
-    //上記のコードは一度ユーザー操作によって音を鳴らさせることで
-    //音機能をユーザーがブラウザに承認してるよって教えるためのコード。
-
+    //一度ユーザーの操作によって音を鳴らさせることで
+    //音機能をユーザーがブラウザに対して承認してるよって教えるためのコード。
     setIsRunning(true);
+    setIsNoiseEnabled(true);
   }
   const handlePause = () => {
     setIsRunning(false);
+    setIsNoiseEnabled(false);
   }
   const handleReset = () => {
     setIsRunning(false);
     setTime(
-      mode === "work" ? workTimeSec : breakTimeSec
+      mode === "work" ? exWorkTimeSec : exBreakTimeSec
     )
   }
   const handleBeepStop = () => {
     setIsBeeping(false);
   }
+  const handleNoise = () => {
+    setIsNoiseEnabled(prev => !prev);
+  }
 
 
 
 
 
-
+  //再生中の時間定義
   useEffect(() => {
     if (!isRunning) return;
     const interval = setInterval(() => {
@@ -59,17 +75,15 @@ function App() {
     return () => clearInterval(interval);
   }, [isRunning]);
 
+  //時間が0になった時のモード定義
   useEffect(() => {
     if (time <= 0) {
-      if (mode === "work") {
-        setMode("break");
-      }
-      else {
-        setMode("work");
-      }
+      const nextMode = mode === "work" ? "break" : "work";
+      setMode(nextMode);
     }
   }, [time]);
 
+  //時間が0になった時の再生定義
   useEffect(() => {
     if (time === 0) {
       setIsRunning(true);
@@ -79,34 +93,66 @@ function App() {
     }
   }, [time])
 
+
+  //モード別の使う時間の定義
   useEffect(() => {
     if (mode === "work") {
-      setTime(workTimeSec)
+      setTime(exWorkTimeSec);
     }
     else {
-      setTime(breakTimeSec);
+      setTime(exBreakTimeSec);
     }
   }, [mode]);
 
+
+  //isBeepingの定義
   useEffect(() => {
     if (!isBeeping) return;
-    //バリデーション
     const id = setInterval(() => {
       beep.play();
     }, 500);
-
     return () => {
       clearInterval(id);
     }
   }, [isBeeping])
-  //isBeepingの鳴っている時と鳴っていない時の定義
 
+
+  //modeが変わってTimeが0になった時のbeep音鳴らすor通知をする定義
   useEffect(() => {
-    if (time <= 0) {
+
+    if (prevModeRef.current == "work" && mode == "break" && time <= 0) {
       setIsBeeping(true);
     }
-    return;
-  }, [time])
+    if (prevModeRef.current == "break" && mode == "work" && time <= 0) {
+      if (Notification.permission === "granted") {
+        new Notification("休憩時間がが終わりました");
+      }
+    }
+    //次回のレンダリング時のために、前回のmodeを箱に手動で入れ直してやってる。
+    prevModeRef.current = mode;
+  }, [mode]);
+
+
+  //ブラウンノイズボタンOFFでなく、時間動いてなくて、break時の定義
+  useEffect(() => {
+    const brown = brownRef.current;
+    if (!isNoiseEnabled || !isRunning || mode !== "work") {
+      brown.pause();
+      brown.currentTime = 0;
+      return;
+      //停止 & 音源の最初に戻す処理
+    }
+    brown.play();
+  }, [isNoiseEnabled, isRunning, mode]);
+
+
+  //通知を使う許可の取得(初回のみ)
+  useEffect(() => {
+    if (Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+  }, []);
+
 
   return (
     <div className="background" onClick={() => { handleBeepStop() }}>
@@ -135,18 +181,22 @@ function App() {
 
         {/*timer*/}
         {minutes}:{seconds}
-        <button className="text-4xl" onClick={((event) => {
+        <button className="text-xl" onClick={((event) => {
           event.stopPropagation();
           handleStart();
-        })}>▶️</button>
-        <button className="text-4xl" onClick={(() => {
+        })}>再生</button>
+        <button className="text-xl" onClick={(() => {
           handlePause(time);
-        })}>⏸️</button>
+        })}>一時停止</button>
         <br />
         <br />
-        <button className="text-4xl" onClick={(() => {
+        <button className="text-xl" onClick={(() => {
           handleReset();
-        })}>🔁</button>
+        })}>停止</button>
+        <button className="text-xl" onClick={handleNoise}>{
+          isNoiseEnabled ? "noiseOff" : "noiseOn"
+        }</button>
+
       </div>}
       {mode === "break" && <div>
         {/* ここにbreak時の画面を描く */}
@@ -157,17 +207,18 @@ function App() {
           <div>Focus break for myself</div>
         </div>
         {minutes}:{seconds}
-        <button className="text-4xl" onClick={(() => {
+        <button className="text-xl" onClick={(() => {
           setIsRunning(true);
-        })} >▶️</button>
-        <button className='text-4xl' onClick={(() => {
+        })} >再生</button>
+        <button className='text-xl' onClick={(() => {
           setIsRunning(false);
-        })}>⏸️</button>
+        })}>一時停止</button>
         <br />
         <br />
-        <button className="text-4xl" onClick={(() => {
+        <button className="text-xl" onClick={(() => {
           handleReset();
-        })}>🔁</button>
+        })}>停止</button>
+        <button className="text-xl" onClick={handleNoise}>{isNoiseEnabled ? "noiseOff" : "noiseOn"}</button>
       </div>
       }
     </div>
