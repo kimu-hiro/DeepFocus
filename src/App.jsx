@@ -4,21 +4,26 @@ import breakIcon from "./assets/breakIcon.png"
 import beepSound from "./assets/beepSound.mp3"
 import brownNoise from "./assets/brownNoise.mp3"
 import './index.css'
+//リセット時に「今までの集中時間を記録しますか？」
+//[記録する] [記録しない] [戻る]というダイアログを出させる。
+//現在は記録しないようにしている。
+//モード（work⇔break）切り替え時も同じダイアログ出させる。
 
 
 function App() {
   //設定時間（秒） ユーザーが設定した作業時間/休憩時間
   const [workTime, setWorkTime] = useState(25 * 60);
-  const [breakTime, setBreakTime] = useState(10 * 60);
+  const [breakTime, setBreakTime] = useState(5 * 60);
 
   //終了時刻（ミリ秒） 「今から何秒後に終わるか」をミリ秒で持っている
   const [endTime, setEndTime] = useState(Date.now() + workTime * 1000 + 1000);
   //booleanが返る。初期値設定すること。１敗。
   const [isRunning, setIsRunning] = useState(false);
-  //work,breakを切り替える。
   const [mode, setMode] = useState("work");
-  //timer, dashboardを切り替える。
+  //work,breakを切り替える。
   const [view, setView] = useState("timer");
+  //timer, dashboardを切り替える。
+
   //Beep音が鳴っているかどうかの状態管理。
   const [isBeeping, setIsBeeping] = useState(false);
   //work/break endTimeを編集中かどうかの状態管理
@@ -31,6 +36,13 @@ function App() {
   const [isMute, setIsMute] = useState(false);
   //ticktackチクタクのtick。1秒ごとに更新するstateってこと。
   const [tick, setTick] = useState(0);
+  //localStorageから取り出す際のデータ管理
+  const [records, setRecords] = useState(
+    JSON.parse(localStorage.getItem("records")) ?? []
+  );
+  //リセット/モード切替の確認ダイアログの状態管理。nullなら非表示。
+  // { type: "reset" } または { type: "switchMode", targetMode: "work" | "break" }
+  const [confirmAction, setConfirmAction] = useState(null);
 
 
   // Audioインスタンスを1つに固定して停止制御が効くようにするための箱
@@ -46,8 +58,9 @@ function App() {
   const pausedTimeRef = useRef(null);
   //タブ閉じ時のデータを保持しておくための箱。
   const workTimeRef = useRef(workTime);
-
-
+  const breakTimeRef = useRef(breakTime);
+  //タブ閉じ時にstudyTimeかrestTimeどっちを保存するか判定するための箱。
+  const modeRef = useRef(mode);
 
 
   //isRunningが　true => 残り時間　= 終了時刻 - 現在時刻
@@ -63,7 +76,6 @@ function App() {
   //useRef系だが、remainingTimeより後に書かなければバグが出るためここに書いてある。
   // タブ閉じた時のためにremainingTimeを毎秒ごとに箱に入れていく
   const remainingTimeRef = useRef(remainingTime);
-  console.log("remainingTimeRef初期値:", remainingTimeRef.current);
 
   //タイマー表示の時のための変数
   const formatTime = (sec) => {
@@ -99,6 +111,47 @@ function App() {
         Date.now() + breakTime * 1000
     );
     pausedTimeRef.current = null;
+    remainingTimeRef.current = null;
+  }
+
+  //現在の経過時間をrecordsに保存する関数
+  const saveTimeRecord = () => {
+    const total = mode === "work" ? workTime : breakTime;
+    const elapsed = total - remainingTime;
+    if (elapsed <= 1) return;
+    const newRecords = JSON.parse(localStorage.getItem("records")) ?? [];
+    const recordDate = new Date().toLocaleDateString();
+    if (mode === "work") {
+      newRecords.push({ recordDate, studyTime: elapsed });
+    } else {
+      newRecords.push({ recordDate, restTime: elapsed });
+    }
+    localStorage.setItem("records", JSON.stringify(newRecords));
+    setRecords(newRecords);
+  }
+
+  //保留中だったリセット/モード切替を実行する関数（内部用）
+  const runPendingChange = () => {
+    if (confirmAction.type === "reset") {
+      handleReset(mode);
+    } else if (confirmAction.type === "switchMode") {
+      setMode(confirmAction.targetMode);
+      setIsRunning(false);
+      pausedTimeRef.current = null;
+      setView("timer");
+    }
+    setConfirmAction(null);
+  }
+
+  //「記録する」ボタン用：保存してから実行
+  const saveAndRun = () => {
+    saveTimeRecord();
+    runPendingChange();
+  }
+
+  //「記録しない」ボタン用：保存せず実行
+  const runWithoutSaving = () => {
+    runPendingChange();
   }
 
   const handleBeepStop = () => {
@@ -111,28 +164,55 @@ function App() {
 
   //タブ閉じ前にデータを取得、追加、保存する関数
   const handleBeforeUnload = () => {
-    console.log("handleBeforeUnload発火!!");
-    localStorage.setItem("test", "発火した！"); // ← 追加
-    const studyTime = workTimeRef.current - remainingTimeRef.current;
-    if (mode === "work" && studyTime > 0) {
-      // ① 既存のデータを取得、?? はnullなら[]を返してという演算子。
-      const records = JSON.parse(
-        localStorage.getItem("records")
-      ) ?? [];
-      // ② 新しい記録を追加
-      const recordDate = new Date().toLocaleDateString()
-      records.push(
-        // recordDate: recordDate, studyTime: studyTime<=
-        // 省略記法化(ショートハンドプロパティ、似てるけど分割代入とは別)
-        { recordDate, studyTime }
-      );
-      // ③ localStorageに保存
-      localStorage.setItem(
-        "records", JSON.stringify(records)
-      );
+    if (remainingTimeRef.current === null) return;
+    if (modeRef.current === "work") {
+      const studyTime = workTimeRef.current - remainingTimeRef.current;
+      if (studyTime > 0) {
+        // ① 既存のデータを取得、?? はnullなら[]を返してという演算子。
+        const newRecords = JSON.parse(
+          localStorage.getItem("records")
+        ) ?? [];
+        // ② 新しい記録を追加
+        const recordDate = new Date().toLocaleDateString()
+        newRecords.push(
+          // recordDate: recordDate, studyTime: studyTime<=
+          // 省略記法化(ショートハンドプロパティ、似てるけど分割代入とは別)
+          { recordDate, studyTime }
+        );
+        // ③ localStorageに保存
+        localStorage.setItem(
+          "records", JSON.stringify(newRecords)
+        );
+        setRecords(newRecords);
+      }
     }
+    //restTimeの保存コード
+    else if (modeRef.current === "break") {
+      const restTime = breakTimeRef.current - remainingTimeRef.current;
+      if (restTime > 0) {
+        // ① 既存のデータを取得、?? はnullなら[]を返してという演算子。
+        const newRecords = JSON.parse(
+          localStorage.getItem("records")
+        ) ?? [];
+        // ② 新しい記録を追加
+        const recordDate = new Date().toLocaleDateString()
+        newRecords.push(
+          // recordDate: recordDate, studyTime: studyTime<=
+          // 省略記法化(ショートハンドプロパティ、似てるけど分割代入とは別)
+          { recordDate, restTime }
+        );
+        // ③ localStorageに保存
+        localStorage.setItem(
+          "records", JSON.stringify(newRecords)
+        );
+        setRecords(newRecords);
+      }
+    };
     remainingTimeRef.current = remainingTime;
-  };
+  }
+
+
+
 
 
   // タブを閉じる直前に実行する処理をまとめた関数
@@ -155,36 +235,45 @@ function App() {
   }, [isRunning]);
 
 
-  //時間が0になった時のモード切り替え、時間再生、勉強時間保存
+  //時間が0になった時のモード切り替え、時間再生、勉強/休憩時間保存
   useEffect(() => {
     //タブが閉じられた時に備えてremainingTimeRef箱にstudyTime入れてる。
     remainingTimeRef.current = remainingTime;
+    modeRef.current = mode;
     if (remainingTime === 0) {
       const nextMode = mode === "work" ? "break" : "work";
       setMode(nextMode);
       setIsRunning(true);
       if (nextMode === "break") {
         // ① 既存のデータを取得、?? はnullなら[]を返してという演算子。
-        const records = JSON.parse(
+        const newRecords = JSON.parse(
           localStorage.getItem("records")
         ) ?? [];
         // ② 新しい記録を追加
         const studyTime = workTime; // ← これが必要
         const recordDate = new Date().toLocaleDateString()
-        records.push(
+        newRecords.push(
           // recordDate: recordDate, studyTime: studyTime<=
           // 省略記法化(ショートハンドプロパティ、似てるけど分割代入とは別)
           { recordDate, studyTime }
         );
         // ③ localStorageに保存
         localStorage.setItem(
-          "records", JSON.stringify(records)
+          "records", JSON.stringify(newRecords)
         );
+        setRecords(newRecords);
+      }
+      //休憩時間の保存
+      else if (nextMode === "work") {
+        const newRecords = JSON.parse(localStorage.getItem("records")) ?? [];
+        const restTime = breakTime;
+        const recordDate = new Date().toLocaleDateString()
+        newRecords.push({ recordDate, restTime });
+        localStorage.setItem("records", JSON.stringify(newRecords));
+        setRecords(newRecords);
       }
     }
-    else {
-      return;
-    }
+    else { }
   }, [tick]);
 
 
@@ -255,176 +344,296 @@ function App() {
   }, []);
 
 
+  //総学習時間・総休憩時間の集計（recordsから毎回計算する値なのでstateにはしない）
+  const totalStudyTime = records
+    .filter((record) => record.studyTime !== undefined)
+    .reduce((sum, record) => sum + record.studyTime, 0);
+  const totalRestTime = records
+    .filter((record) => record.restTime !== undefined)
+    .reduce((sum, record) => sum + record.restTime, 0);
 
 
   return (
     <div className="background" onClick={() => { handleBeepStop() }}>
+
       <button onClick={() => {
-        setMode("work");
-        setIsRunning(false);
-        pausedTimeRef.current = null;
+        if (mode !== "work") {
+          const elapsed = breakTime - remainingTime;
+          if (elapsed <= 1) {
+            setMode("work");
+            setIsRunning(false);
+            pausedTimeRef.current = null;
+          } else {
+            setConfirmAction({ type: "switchMode", targetMode: "work" });
+          }
+        }
+        setView("timer");
       }}
-        className={mode === "work" ? "bg-gray-200" : "bg-red-500"}
+        className={mode === "work" && view === "timer" ? "bg-gray-200" : "bg-red-500"}
       >workTime</button>
       <button onClick={() => {
-        setMode("break");
-        setIsRunning(false);
-        pausedTimeRef.current = null;
+        if (mode !== "break") {
+          const elapsed = workTime - remainingTime;
+          if (elapsed <= 1) {
+            setMode("break");
+            setIsRunning(false);
+            pausedTimeRef.current = null;
+          } else {
+            setConfirmAction({ type: "switchMode", targetMode: "break" });
+          }
+        }
+        setView("timer")
       }}
-        className={mode === "break" ? "bg-gray-200" : "bg-green-500"}
+        className={mode === "break" && view === "timer" ? "bg-gray-200" : "bg-green-500"}
       >breakTime</button>
 
       <button onClick={() => {
-        setView("dashBoard")
+        setView("dashBoard");
       }}
-        className={view === "time" ? "bg-blue-500" : "bg-gray-200"}
+        className={view === "dashBoard" ? "bg-gray-200" : "bg-blue-500"}
       >dashBoard</button>
-      {mode === "work" && <div>
-        {/* title */}
-        <h1>PomodoroTimer</h1>
+      {view === "timer" && (
+        <>
+          {mode === "work" && <div>
+            {/* title */}
+            <h1>PomodoroTimer</h1>
 
 
-        <h1>workTime</h1>
+            <h1>workTime</h1>
 
-        {/* subtitleCard */}
-        <div>
-          <img className="w-16 h-16" src={workIcon} />
-          <div>Focus Study for myself</div>
-        </div>
+            {/* subtitleCard */}
+            <div>
+              <img className="w-16 h-16" src={workIcon} />
+              <div>Focus Study for myself</div>
+            </div>
 
-        {/*workMode中ユーザーが時間設定できるようにするインターフェイス*/}
-        {isEditing ? (
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onBlur={() => {
-              const [m, s] = inputValue.split(":").map(Number);
-              const msTotal = (m || 0) * 60 + (s || 0)
-              setWorkTime(msTotal);
-              setEndTime(Date.now() + msTotal * 1000);
-              setIsEditing(false);
-              workTimeRef.current = msTotal;
-            }}
-          />
-        ) : (
-          <span onClick={() => {
-            setIsRunning(false);
-            setInputValue(formatTime(remainingTime));
-            setIsEditing(true);
-          }}>
-            {String(Math.trunc(remainingTime / 60)).padStart(2, "0")}:
-            {String(Math.trunc(remainingTime % 60)).padStart(2, "0")}
-          </span>
-        )}
+            {/*workMode中ユーザーが時間設定できるようにするインターフェイス*/}
+            {isEditing ? (
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onBlur={() => {
+                  const [m, s] = inputValue.split(":").map(Number);
+                  const msTotal = (m || 0) * 60 + (s || 0)
+                  setWorkTime(msTotal);
+                  setEndTime(Date.now() + msTotal * 1000);
+                  setIsEditing(false);
+                  workTimeRef.current = msTotal;
+                }}
+              />
+            ) : (
+              <span onClick={() => {
+                setIsRunning(false);
+                setInputValue(formatTime(remainingTime));
+                setIsEditing(true);
+              }}>
+                {String(Math.trunc(remainingTime / 60)).padStart(2, "0")}:
+                {String(Math.trunc(remainingTime % 60)).padStart(2, "0")}
+              </span>
+            )}
 
-        {/* 再生ボタンと一時停止ボタン */}
-        {!isRunning ?
-          <button className="text-xl" onClick={((event) => {
-            event.stopPropagation();
-            handleStart();
-          })}>再生</button> :
+            {/* 再生ボタンと一時停止ボタン */}
+            {!isRunning ?
+              <button className="text-xl" onClick={((event) => {
+                event.stopPropagation();
+                handleStart();
+              })}>再生</button> :
 
-          <button className="text-xl" onClick={(() => {
-            handlePause(remainingTime);
-          })}>一時停止</button>
-        }
+              <button className="text-xl" onClick={(() => {
+                handlePause(remainingTime);
+              })}>一時停止</button>
+            }
 
-        <br />
-        <button className="text-xl" onClick={(() => {
-          handleReset("work");
-        })}>リセット</button>
+            <br />
+            <button className="text-xl" onClick={(() => {
+              const elapsed = workTime - remainingTime;
+              if (elapsed <= 1) {
+                handleReset("work");
+              } else {
+                setConfirmAction({ type: "reset" });
+              }
+            })}>リセット</button>
 
-        {/*/ブラウンノイズボリューム調整アイコン justifyは横、itemsは縦 */}
-        <div className="group flex items-center gap-2">
-          {/* 音アイコン */}
-          <button
-            onClick={handleMute}
-            className="cursor-pointer">
-            {isMute ? "🔇" : "🔊"}
-          </button>
-          {/* ブラウンノイズのボリューム調整のスライダー */}
-          <input
-            className="w-0 opacity-0
+            {/*/ブラウンノイズボリューム調整アイコン justifyは横、itemsは縦 */}
+            <div className="group flex items-center gap-2">
+              {/* 音アイコン */}
+              <button
+                onClick={handleMute}
+                className="cursor-pointer">
+                {isMute ? "🔇" : "🔊"}
+              </button>
+              {/* ブラウンノイズのボリューム調整のスライダー */}
+              <input
+                className="w-0 opacity-0
             group-hover:opacity-100 
             group-hover:w-24
             // group-hover:が必要なのは変化するものだけ
             transition-all duration-300"
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={brownVolume}
-            onChange={(e) => setBrownVolume(Number(e.target.value))}
-          />
-        </div>
-      </div>
-
-      }{
-        mode === "break" && <div>
-          {/* ここにbreak時の画面を描く */}
-          <h1>pomodoroTimer</h1>
-          <h1>breakTime</h1>
-          <div>
-            <img className="w-16 h-16" src={breakIcon} />
-            <div>Focus break for myself</div>
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={brownVolume}
+                onChange={(e) => setBrownVolume(Number(e.target.value))}
+              />
+            </div>
           </div>
 
-          {/*breakMode中ユーザーが時間設定できるようにするインターフェイス*/}
-          {isEditing ? (
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onBlur={() => {
-                const [m, s] = inputValue.split(":").map(Number);
-                const msTotal = (m || 0) * 60 + (s || 0)
-                setBreakTime(msTotal);
-                setEndTime(Date.now() + msTotal * 1000);
-                setIsEditing(false);
-              }}
-            />
-          ) : (
-            <span onClick={() => {
-              setIsRunning(false);
-              setInputValue(formatTime(remainingTime));
-              setIsEditing(true);
-            }}>
-              {String(Math.trunc(remainingTime / 60)).padStart(2, "0")}:
-              {String(Math.trunc(remainingTime % 60)).padStart(2, "0")}
-            </span>
-          )}
+          }{
+            mode === "break" && <div>
+              {/* ここにbreak時の画面を描く */}
+              <h1>pomodoroTimer</h1>
+              <h1>breakTime</h1>
+              <div>
+                <img className="w-16 h-16" src={breakIcon} />
+                <div>Focus break for myself</div>
+              </div>
 
-          {/* 再生ボタンと一時停止ボタン */}
-          {!isRunning ?
-            <button className="text-xl" onClick={((event) => {
-              event.stopPropagation();
-              handleStart();
-            })}>再生</button> :
+              {/*breakMode中ユーザーが時間設定できるようにするインターフェイス*/}
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onBlur={() => {
+                    const [m, s] = inputValue.split(":").map(Number);
+                    const msTotal = (m || 0) * 60 + (s || 0)
+                    setBreakTime(msTotal);
+                    setEndTime(Date.now() + msTotal * 1000);
+                    setIsEditing(false);
+                    breakTimeRef.current = msTotal;
+                  }}
+                />
+              ) : (
+                <span onClick={() => {
+                  setIsRunning(false);
+                  setInputValue(formatTime(remainingTime));
+                  setIsEditing(true);
+                }}>
+                  {String(Math.trunc(remainingTime / 60)).padStart(2, "0")}:
+                  {String(Math.trunc(remainingTime % 60)).padStart(2, "0")}
+                </span>
+              )}
 
-            <button className="text-xl" onClick={(() => {
-              handlePause(remainingTime);
-            })}>一時停止</button>
+              {/* 再生ボタンと一時停止ボタン */}
+              {!isRunning ?
+                <button className="text-xl" onClick={((event) => {
+                  event.stopPropagation();
+                  handleStart();
+                })}>再生</button> :
+
+                <button className="text-xl" onClick={(() => {
+                  handlePause(remainingTime);
+                })}>一時停止</button>
+              }
+
+              <br />
+              <button className="text-xl" onClick={(() => {
+                const elapsed = breakTime - remainingTime;
+                if (elapsed <= 1) {
+                  handleReset("break");
+                } else {
+                  setConfirmAction({ type: "reset" });
+                }
+              })}>リセット</button>
+
+
+              {/*/ブラウンノイズボリューム調整アイコン justifyは横、itemsは縦 */}
+              <div className="group flex items-center gap-2">
+                {/* 音アイコン */}
+                <button
+                  onClick={handleMute}
+                  className="cursor-pointer">
+                  {isMute ? "🔇" : "🔊"}
+                </button>
+                {/* ブラウンノイズのボリューム調整のスライダー */}
+                <input
+                  className="w-0 opacity-0
+            group-hover:opacity-100 
+            group-hover:w-24
+            // group-hover:が必要なのは変化するものだけ
+            transition-all duration-300"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={brownVolume}
+                  onChange={(e) => setBrownVolume(Number(e.target.value))}
+                />
+              </div>
+            </div>
           }
-
-          <br />
-          <button className="text-xl" onClick={(() => {
-            handleReset("break");
-          })}>リセット</button>
-
-
-          {/* ブラウンノイズのボリューム調整のスライダー */}
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={brownVolume}
-            onChange={(e) => setBrownVolume(Number(e.target.value))}
-          />
+        </>
+      )}
+      {view === "dashBoard" && <div className="p-6">
+        <h2 className="text-xl font-bold mb-4">ダッシュボード</h2>
+        <div className="flex gap-12">
+          <div>
+            <h3 className="font-bold mb-2">学習時間</h3>
+            <p className="mb-3">
+              総学習時間 : {Math.floor(totalStudyTime / 3600)}時間{Math.floor((totalStudyTime % 3600) / 60)}分{totalStudyTime % 60}秒
+            </p>
+            <div className="space-y-1">
+              {records
+                .filter((record) => record.studyTime !== undefined)
+                // recordsはstate本体なので直接reverseすると壊れる。
+                // sliceでコピーを作ってから、コピーの方をreverseしてる。
+                // records自体は追加された順（古い→新しい）に並んでるので、
+                // 逆順にするだけで新しい記録が上に来る。
+                .slice()
+                .reverse()
+                .map((record, index) => (
+                  <div key={index}>
+                    {record.recordDate} : {Math.floor(record.studyTime / 60)}分{Math.floor(record.studyTime % 60)}秒
+                  </div>
+                ))}
+            </div>
+          </div>
+          <div>
+            <h3 className="font-bold mb-2">休憩時間</h3>
+            <p className="mb-3">
+              総休憩時間 : {Math.floor(totalRestTime / 3600)}時間{Math.floor((totalRestTime % 3600) / 60)}分{totalRestTime % 60}秒
+            </p>
+            <div className="space-y-1">
+              {records
+                .filter((record) => record.restTime !== undefined)
+                // 学習時間側と同じ理由でコピーしてからreverseしてる。
+                .slice()
+                .reverse()
+                .map((record, index) => (
+                  <div key={index}>
+                    {record.recordDate} : {Math.floor(record.restTime / 60)}分{Math.floor(record.restTime % 60)}秒
+                  </div>
+                ))}
+            </div>
+          </div>
         </div>
-      }
+      </div>}
+      {confirmAction && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50">
+          <div className="bg-white p-6 rounded shadow-lg flex flex-col gap-3 max-w-xs text-gray-800">
+            <p>
+              今までの{mode === "work" ? "集中" : "休憩"}時間を記録しますか？
+            </p>
+            <button
+              className="px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600 cursor-pointer"
+              onClick={saveAndRun}
+            >これまでの{mode === "work" ? "集中" : "休憩"}時間を記録する</button>
+            <button
+              className="px-4 py-2 rounded bg-gray-300 text-gray-800 hover:bg-gray-400 cursor-pointer"
+              onClick={runWithoutSaving}
+            >これまでの{mode === "work" ? "集中" : "休憩"}時間を記録しない</button>
+            <button
+              className="px-4 py-2 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 cursor-pointer"
+              onClick={() => setConfirmAction(null)}
+            >戻る</button>
+          </div>
+        </div>
+      )}
     </div >
+
+
   )
 }
 export default App
