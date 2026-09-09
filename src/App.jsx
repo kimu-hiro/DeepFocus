@@ -352,9 +352,15 @@ function App() {
     .filter((record) => record.restTime !== undefined)
     .reduce((sum, record) => sum + record.restTime, 0);
 
+  //円形プログレスバー用の計算（半径・円周・経過割合）
+  const RING_RADIUS = 90;
+  const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+  const currentTotalTime = mode === "work" ? workTime : breakTime;
+  const progressRatio = currentTotalTime > 0 ? (currentTotalTime - remainingTime) / currentTotalTime : 0;
+
 
   return (
-    <div className="background" onClick={() => { handleBeepStop() }}>
+    <div className="background min-h-screen bg-neutral-950 text-white" onClick={() => { handleBeepStop() }}>
 
       <button onClick={() => {
         if (mode !== "work") {
@@ -369,7 +375,7 @@ function App() {
         }
         setView("timer");
       }}
-        className={mode === "work" && view === "timer" ? "bg-gray-200" : "bg-red-500"}
+        className={mode === "work" && view === "timer" ? "bg-gray-700" : "bg-red-500"}
       >workTime</button>
       <button onClick={() => {
         if (mode !== "break") {
@@ -384,13 +390,13 @@ function App() {
         }
         setView("timer")
       }}
-        className={mode === "break" && view === "timer" ? "bg-gray-200" : "bg-green-500"}
+        className={mode === "break" && view === "timer" ? "bg-gray-700" : "bg-green-500"}
       >breakTime</button>
 
       <button onClick={() => {
         setView("dashBoard");
       }}
-        className={view === "dashBoard" ? "bg-gray-200" : "bg-blue-500"}
+        className={view === "dashBoard" ? "bg-gray-700" : "bg-blue-500"}
       >dashBoard</button>
       {view === "timer" && (
         <>
@@ -408,30 +414,46 @@ function App() {
             </div>
 
             {/*workMode中ユーザーが時間設定できるようにするインターフェイス*/}
-            {isEditing ? (
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onBlur={() => {
-                  const [m, s] = inputValue.split(":").map(Number);
-                  const msTotal = (m || 0) * 60 + (s || 0)
-                  setWorkTime(msTotal);
-                  setEndTime(Date.now() + msTotal * 1000);
-                  setIsEditing(false);
-                  workTimeRef.current = msTotal;
-                }}
-              />
-            ) : (
-              <span onClick={() => {
-                setIsRunning(false);
-                setInputValue(formatTime(remainingTime));
-                setIsEditing(true);
-              }}>
-                {String(Math.trunc(remainingTime / 60)).padStart(2, "0")}:
-                {String(Math.trunc(remainingTime % 60)).padStart(2, "0")}
-              </span>
-            )}
+            <div className="relative w-56 h-56 flex items-center justify-center mx-auto">
+              <svg className="absolute inset-0 -rotate-90" width="224" height="224" viewBox="0 0 224 224">
+                <circle cx="112" cy="112" r={RING_RADIUS} fill="none" stroke="#3f3f46" strokeWidth="10" />
+                <circle
+                  cx="112" cy="112" r={RING_RADIUS}
+                  fill="none"
+                  stroke="#ef4444"
+                  strokeWidth="10"
+                  strokeLinecap="round"
+                  strokeDasharray={RING_CIRCUMFERENCE}
+                  strokeDashoffset={RING_CIRCUMFERENCE * (1 - progressRatio)}
+                  style={{ filter: "drop-shadow(0 0 4px #ef4444) drop-shadow(0 0 10px #ef4444)" }}
+                />
+              </svg>
+              {isEditing ? (
+                <input
+                  className="z-10 text-3xl text-center w-24"
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onBlur={() => {
+                    const [m, s] = inputValue.split(":").map(Number);
+                    const msTotal = (m || 0) * 60 + (s || 0)
+                    setWorkTime(msTotal);
+                    setEndTime(Date.now() + msTotal * 1000);
+                    setIsEditing(false);
+                    workTimeRef.current = msTotal;
+                  }}
+                />
+              ) : (
+                <span className="z-10 text-4xl font-bold" onClick={() => {
+                  setIsRunning(false);
+                  setInputValue(formatTime(remainingTime));
+                  setIsEditing(true);
+                }}>
+                  {String(Math.trunc(remainingTime / 60)).padStart(2, "0")}:
+                  {String(Math.trunc(remainingTime % 60)).padStart(2, "0")}
+                </span>
+              )}
+            </div>
 
             {/* 再生ボタンと一時停止ボタン */}
             {!isRunning ?
@@ -491,30 +513,46 @@ function App() {
               </div>
 
               {/*breakMode中ユーザーが時間設定できるようにするインターフェイス*/}
-              {isEditing ? (
-                <input
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onBlur={() => {
-                    const [m, s] = inputValue.split(":").map(Number);
-                    const msTotal = (m || 0) * 60 + (s || 0)
-                    setBreakTime(msTotal);
-                    setEndTime(Date.now() + msTotal * 1000);
-                    setIsEditing(false);
-                    breakTimeRef.current = msTotal;
-                  }}
-                />
-              ) : (
-                <span onClick={() => {
-                  setIsRunning(false);
-                  setInputValue(formatTime(remainingTime));
-                  setIsEditing(true);
-                }}>
-                  {String(Math.trunc(remainingTime / 60)).padStart(2, "0")}:
-                  {String(Math.trunc(remainingTime % 60)).padStart(2, "0")}
-                </span>
-              )}
+              <div className="relative w-56 h-56 flex items-center justify-center mx-auto">
+                <svg className="absolute inset-0 -rotate-90" width="224" height="224" viewBox="0 0 224 224">
+                  <circle cx="112" cy="112" r={RING_RADIUS} fill="none" stroke="#3f3f46" strokeWidth="10" />
+                  <circle
+                    cx="112" cy="112" r={RING_RADIUS}
+                    fill="none"
+                    stroke="#22c55e"
+                    strokeWidth="10"
+                    strokeLinecap="round"
+                    strokeDasharray={RING_CIRCUMFERENCE}
+                    strokeDashoffset={RING_CIRCUMFERENCE * (1 - progressRatio)}
+                    style={{ filter: "drop-shadow(0 0 4px #22c55e) drop-shadow(0 0 10px #22c55e)" }}
+                  />
+                </svg>
+                {isEditing ? (
+                  <input
+                    className="z-10 text-3xl text-center w-24"
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onBlur={() => {
+                      const [m, s] = inputValue.split(":").map(Number);
+                      const msTotal = (m || 0) * 60 + (s || 0)
+                      setBreakTime(msTotal);
+                      setEndTime(Date.now() + msTotal * 1000);
+                      setIsEditing(false);
+                      breakTimeRef.current = msTotal;
+                    }}
+                  />
+                ) : (
+                  <span className="z-10 text-4xl font-bold" onClick={() => {
+                    setIsRunning(false);
+                    setInputValue(formatTime(remainingTime));
+                    setIsEditing(true);
+                  }}>
+                    {String(Math.trunc(remainingTime / 60)).padStart(2, "0")}:
+                    {String(Math.trunc(remainingTime % 60)).padStart(2, "0")}
+                  </span>
+                )}
+              </div>
 
               {/* 再生ボタンと一時停止ボタン */}
               {!isRunning ?
