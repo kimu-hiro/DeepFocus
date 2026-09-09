@@ -4,6 +4,7 @@ import breakIcon from "./assets/breakIcon.png"
 import beepSound from "./assets/beepSound.mp3"
 import brownNoise from "./assets/brownNoise.mp3"
 import './index.css'
+import Practice from './Practice.jsx'
 //リセット時に「今までの集中時間を記録しますか？」
 //[記録する] [記録しない] [戻る]というダイアログを出させる。
 //現在は記録しないようにしている。
@@ -396,8 +397,16 @@ function App() {
       <button onClick={() => {
         setView("dashBoard");
       }}
+
         className={view === "dashBoard" ? "bg-gray-700" : "bg-blue-500"}
       >dashBoard</button>
+
+      <button onClick={() => {
+        setView("practice");
+      }}
+        className={view === "practice" ? "bg-gray-700" : "bg-yellow-500"}
+      >practice</button>
+
       {view === "timer" && (
         <>
           {mode === "work" && <div>
@@ -421,7 +430,7 @@ function App() {
                   cx="112" cy="112" r={RING_RADIUS}
                   fill="none"
                   stroke="#ef4444"
-                  strokeWidth="10"
+                  strokeWidth="13"
                   strokeLinecap="round"
                   strokeDasharray={RING_CIRCUMFERENCE}
                   strokeDashoffset={RING_CIRCUMFERENCE * (1 - progressRatio)}
@@ -520,7 +529,7 @@ function App() {
                     cx="112" cy="112" r={RING_RADIUS}
                     fill="none"
                     stroke="#22c55e"
-                    strokeWidth="10"
+                    strokeWidth="13"
                     strokeLinecap="round"
                     strokeDasharray={RING_CIRCUMFERENCE}
                     strokeDashoffset={RING_CIRCUMFERENCE * (1 - progressRatio)}
@@ -648,27 +657,31 @@ function App() {
           </div>
         </div>
       </div>}
-      {confirmAction && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-          <div className="bg-white p-6 rounded shadow-lg flex flex-col gap-3 max-w-xs text-gray-800">
-            <p>
-              今までの{mode === "work" ? "集中" : "休憩"}時間を記録しますか？
-            </p>
-            <button
-              className="px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600 cursor-pointer"
-              onClick={saveAndRun}
-            >これまでの{mode === "work" ? "集中" : "休憩"}時間を記録する</button>
-            <button
-              className="px-4 py-2 rounded bg-gray-300 text-gray-800 hover:bg-gray-400 cursor-pointer"
-              onClick={runWithoutSaving}
-            >これまでの{mode === "work" ? "集中" : "休憩"}時間を記録しない</button>
-            <button
-              className="px-4 py-2 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 cursor-pointer"
-              onClick={() => setConfirmAction(null)}
-            >戻る</button>
+      {view === "practice" && <div className="p-6"><Practice /></div>}
+
+      {
+        confirmAction && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black/50">
+            <div className="bg-white p-6 rounded shadow-lg flex flex-col gap-3 max-w-xs text-gray-800">
+              <p>
+                今までの{mode === "work" ? "集中" : "休憩"}時間を記録しますか？
+              </p>
+              <button
+                className="px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600 cursor-pointer"
+                onClick={saveAndRun}
+              >これまでの{mode === "work" ? "集中" : "休憩"}時間を記録する</button>
+              <button
+                className="px-4 py-2 rounded bg-gray-300 text-gray-800 hover:bg-gray-400 cursor-pointer"
+                onClick={runWithoutSaving}
+              >これまでの{mode === "work" ? "集中" : "休憩"}時間を記録しない</button>
+              <button
+                className="px-4 py-2 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 cursor-pointer"
+                onClick={() => setConfirmAction(null)}
+              >戻る</button>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
     </div >
 
 
