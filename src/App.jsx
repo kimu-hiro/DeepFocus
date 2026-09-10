@@ -163,56 +163,25 @@ function App() {
     setIsMute(prev => !prev)
   }
 
-  //タブ閉じ前にデータを取得、追加、保存する関数
-  const handleBeforeUnload = () => {
+  //タブ閉じ前に「離れますか？」確認だけを出す関数（保存はまだしない）
+  const handleBeforeUnload = (e) => {
     if (remainingTimeRef.current === null) return;
     if (modeRef.current === "work") {
       const studyTime = workTimeRef.current - remainingTimeRef.current;
-      if (studyTime > 0) {
-        // ① 既存のデータを取得、?? はnullなら[]を返してという演算子。
-        const newRecords = JSON.parse(
-          localStorage.getItem("records")
-        ) ?? [];
-        // ② 新しい記録を追加
-        const recordDate = new Date().toLocaleDateString()
-        newRecords.push(
-          // recordDate: recordDate, studyTime: studyTime<=
-          // 省略記法化(ショートハンドプロパティ、似てるけど分割代入とは別)
-          { recordDate, studyTime }
-        );
-        // ③ localStorageに保存
-        localStorage.setItem(
-          "records", JSON.stringify(newRecords)
-        );
-        setRecords(newRecords);
+      if (studyTime > 1) {
+        //ブラウザ標準の「このページを離れますか？」確認を出す
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    } else if (modeRef.current === "break") {
+      const restTime = breakTimeRef.current - remainingTimeRef.current;
+      if (restTime > 1) {
+        //ブラウザ標準の「このページを離れますか？」確認を出す
+        e.preventDefault();
+        e.returnValue = "";
       }
     }
-    //restTimeの保存コード
-    else if (modeRef.current === "break") {
-      const restTime = breakTimeRef.current - remainingTimeRef.current;
-      if (restTime > 0) {
-        // ① 既存のデータを取得、?? はnullなら[]を返してという演算子。
-        const newRecords = JSON.parse(
-          localStorage.getItem("records")
-        ) ?? [];
-        // ② 新しい記録を追加
-        const recordDate = new Date().toLocaleDateString()
-        newRecords.push(
-          // recordDate: recordDate, studyTime: studyTime<=
-          // 省略記法化(ショートハンドプロパティ、似てるけど分割代入とは別)
-          { recordDate, restTime }
-        );
-        // ③ localStorageに保存
-        localStorage.setItem(
-          "records", JSON.stringify(newRecords)
-        );
-        setRecords(newRecords);
-      }
-    };
-    remainingTimeRef.current = remainingTime;
   }
-
-
 
 
 
