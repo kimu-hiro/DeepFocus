@@ -5,6 +5,7 @@ import beepSound from "./assets/beepSound.mp3"
 import brownNoise from "./assets/brownNoise.mp3"
 import './index.css'
 import Practice from './Practice.jsx'
+import { Play, Pause, Square, Volume2, VolumeX } from "lucide-react"
 //リセット時に「今までの集中時間を記録しますか？」
 //[記録する] [記録しない] [戻る]というダイアログを出させる。
 //現在は記録しないようにしている。
@@ -323,7 +324,7 @@ function App() {
     .reduce((sum, record) => sum + record.restTime, 0);
 
   //円形プログレスバー用の計算（半径・円周・経過割合）
-  const RING_RADIUS = 90;
+  const RING_RADIUS = 128;
   const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
   const currentTotalTime = mode === "work" ? workTime : breakTime;
   const progressRatio = currentTotalTime > 0 ? (currentTotalTime - remainingTime) / currentTotalTime : 0;
@@ -392,11 +393,11 @@ function App() {
             </div>
 
             {/*workMode中ユーザーが時間設定できるようにするインターフェイス*/}
-            <div className="relative w-56 h-56 flex items-center justify-center mx-auto">
-              <svg className="absolute inset-0 -rotate-90" width="224" height="224" viewBox="0 0 224 224">
-                <circle cx="112" cy="112" r={RING_RADIUS} fill="none" stroke="#3f3f46" strokeWidth="10" />
+            <div className="relative w-80 h-80 flex items-center justify-center mx-auto">
+              <svg className="absolute inset-0 -rotate-90" width="320" height="320" viewBox="0 0 320 320">
+                <circle cx="160" cy="160" r={RING_RADIUS} fill="none" stroke="#3f3f46" strokeWidth="10" />
                 <circle
-                  cx="112" cy="112" r={RING_RADIUS}
+                  cx="160" cy="160" r={RING_RADIUS}
                   fill="none"
                   stroke="#ef4444"
                   strokeWidth="13"
@@ -408,7 +409,7 @@ function App() {
               </svg>
               {isEditing ? (
                 <input
-                  className="z-10 text-3xl text-center w-24"
+                  className="z-10 text-4xl text-center w-28"
                   type="text"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
@@ -422,7 +423,7 @@ function App() {
                   }}
                 />
               ) : (
-                <span className="z-10 text-4xl font-bold" onClick={() => {
+                <span className="z-10 text-5xl font-bold" onClick={() => {
                   setIsRunning(false);
                   setInputValue(formatTime(remainingTime));
                   setIsEditing(true);
@@ -433,50 +434,66 @@ function App() {
               )}
             </div>
 
-            {/* 再生ボタンと一時停止ボタン */}
-            {!isRunning ?
-              <button className="text-xl" onClick={((event) => {
-                event.stopPropagation();
-                handleStart();
-              })}>再生</button> :
+            {/* 再生ボタンと一時停止ボタンとリセットボタン */}
+            <div className="flex items-center justify-center gap-6 mt-2">
+              {!isRunning ?
+                <button className="text-red-500 cursor-pointer" onClick={((event) => {
+                  event.stopPropagation();
+                  handleStart();
+                })}>
+                  <Play size={40} style={{ filter: "drop-shadow(0 0 4px #ef4444) drop-shadow(0 0 10px #ef4444)" }} />
+                </button> :
 
-              <button className="text-xl" onClick={(() => {
-                handlePause(remainingTime);
-              })}>一時停止</button>
-            }
-
-            <br />
-            <button className="text-xl" onClick={(() => {
-              const elapsed = workTime - remainingTime;
-              if (elapsed <= 1) {
-                handleReset("work");
-              } else {
-                setConfirmAction({ type: "reset" });
+                <button className="text-red-500 cursor-pointer" onClick={(() => {
+                  handlePause(remainingTime);
+                })}>
+                  <Pause size={40} style={{ filter: "drop-shadow(0 0 4px #ef4444) drop-shadow(0 0 10px #ef4444)" }} />
+                </button>
               }
-            })}>リセット</button>
 
-            {/*/ブラウンノイズボリューム調整アイコン justifyは横、itemsは縦 */}
-            <div className="group flex items-center gap-2">
-              {/* 音アイコン */}
-              <button
-                onClick={handleMute}
-                className="cursor-pointer">
-                {isMute ? "🔇" : "🔊"}
+              <button className="text-red-500 cursor-pointer" onClick={(() => {
+                const elapsed = workTime - remainingTime;
+                if (elapsed <= 1) {
+                  handleReset("work");
+                } else {
+                  setConfirmAction({ type: "reset" });
+                }
+              })}>
+                <Square size={36} style={{ filter: "drop-shadow(0 0 4px #ef4444) drop-shadow(0 0 10px #ef4444)" }} />
               </button>
-              {/* ブラウンノイズのボリューム調整のスライダー */}
-              <input
-                className="w-0 opacity-0
-            group-hover:opacity-100 
-            group-hover:w-24
-            // group-hover:が必要なのは変化するものだけ
-            transition-all duration-300"
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={brownVolume}
-                onChange={(e) => setBrownVolume(Number(e.target.value))}
-              />
+
+              {/*/ブラウンノイズボリューム調整アイコン justifyは横、itemsは縦 */}
+              {/* group-hover:が必要なのは変化するものだけ */}
+              <div className="group flex items-center gap-2">
+                {/* 音アイコン */}
+                <button
+                  onClick={handleMute}
+                  className="text-red-500 cursor-pointer">
+                  {isMute ?
+                    <VolumeX size={36} style={{ filter: "drop-shadow(0 0 4px #ef4444) drop-shadow(0 0 10px #ef4444)" }} /> :
+                    <Volume2 size={36} style={{ filter: "drop-shadow(0 0 4px #ef4444) drop-shadow(0 0 10px #ef4444)" }} />
+                  }
+                </button>
+                {/* ブラウンノイズのボリューム調整のスライダー */}
+                <input
+                  className="w-0 opacity-0
+                  group-hover:opacity-100
+                  group-hover:w-28
+                  transition-all duration-800
+                  appearance-none cursor-pointer
+                  [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent
+                  [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:-mt-1 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-red-500 [&::-webkit-slider-thumb]:shadow-[0_0_6px_#ef4444,0_0_10px_#ef4444]
+                  [&::-moz-range-track]:h-1 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent
+                  [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:bg-red-500 [&::-moz-range-thumb]:shadow-[0_0_6px_#ef4444,0_0_10px_#ef4444]"
+                  style={{ background: `linear-gradient(to right, #ef4444 ${brownVolume * 100}%, #3f3f46 ${brownVolume * 100}%)` }}
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={brownVolume}
+                  onChange={(e) => setBrownVolume(Number(e.target.value))}
+                />
+              </div>
             </div>
           </div>
 
@@ -491,11 +508,11 @@ function App() {
               </div>
 
               {/*breakMode中ユーザーが時間設定できるようにするインターフェイス*/}
-              <div className="relative w-56 h-56 flex items-center justify-center mx-auto">
-                <svg className="absolute inset-0 -rotate-90" width="224" height="224" viewBox="0 0 224 224">
-                  <circle cx="112" cy="112" r={RING_RADIUS} fill="none" stroke="#3f3f46" strokeWidth="10" />
+              <div className="relative w-80 h-80 flex items-center justify-center mx-auto">
+                <svg className="absolute inset-0 -rotate-90" width="320" height="320" viewBox="0 0 320 320">
+                  <circle cx="160" cy="160" r={RING_RADIUS} fill="none" stroke="#3f3f46" strokeWidth="10" />
                   <circle
-                    cx="112" cy="112" r={RING_RADIUS}
+                    cx="160" cy="160" r={RING_RADIUS}
                     fill="none"
                     stroke="#22c55e"
                     strokeWidth="13"
@@ -507,7 +524,7 @@ function App() {
                 </svg>
                 {isEditing ? (
                   <input
-                    className="z-10 text-3xl text-center w-24"
+                    className="z-10 text-4xl text-center w-28"
                     type="text"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
@@ -521,7 +538,7 @@ function App() {
                     }}
                   />
                 ) : (
-                  <span className="z-10 text-4xl font-bold" onClick={() => {
+                  <span className="z-10 text-5xl font-bold" onClick={() => {
                     setIsRunning(false);
                     setInputValue(formatTime(remainingTime));
                     setIsEditing(true);
@@ -532,51 +549,66 @@ function App() {
                 )}
               </div>
 
-              {/* 再生ボタンと一時停止ボタン */}
-              {!isRunning ?
-                <button className="text-xl" onClick={((event) => {
-                  event.stopPropagation();
-                  handleStart();
-                })}>再生</button> :
+              {/* 再生ボタンと一時停止ボタンとリセットボタン */}
+              <div className="flex items-center justify-center gap-6 mt-2">
+                {!isRunning ?
+                  <button className="text-green-500 cursor-pointer" onClick={((event) => {
+                    event.stopPropagation();
+                    handleStart();
+                  })}>
+                    <Play size={40} style={{ filter: "drop-shadow(0 0 4px #22c55e) drop-shadow(0 0 10px #22c55e)" }} />
+                  </button> :
 
-                <button className="text-xl" onClick={(() => {
-                  handlePause(remainingTime);
-                })}>一時停止</button>
-              }
-
-              <br />
-              <button className="text-xl" onClick={(() => {
-                const elapsed = breakTime - remainingTime;
-                if (elapsed <= 1) {
-                  handleReset("break");
-                } else {
-                  setConfirmAction({ type: "reset" });
+                  <button className="text-green-500 cursor-pointer" onClick={(() => {
+                    handlePause();
+                  })}>
+                    <Pause size={40} style={{ filter: "drop-shadow(0 0 4px #22c55e) drop-shadow(0 0 10px #22c55e)" }} />
+                  </button>
                 }
-              })}>リセット</button>
 
-
-              {/*/ブラウンノイズボリューム調整アイコン justifyは横、itemsは縦 */}
-              <div className="group flex items-center gap-2">
-                {/* 音アイコン */}
-                <button
-                  onClick={handleMute}
-                  className="cursor-pointer">
-                  {isMute ? "🔇" : "🔊"}
+                <button className="text-green-500 cursor-pointer" onClick={(() => {
+                  const elapsed = breakTime - remainingTime;
+                  if (elapsed <= 1) {
+                    handleReset("break");
+                  } else {
+                    setConfirmAction({ type: "reset" });
+                  }
+                })}>
+                  <Square size={36} style={{ filter: "drop-shadow(0 0 4px #22c55e) drop-shadow(0 0 10px #22c55e)" }} />
                 </button>
-                {/* ブラウンノイズのボリューム調整のスライダー */}
-                <input
-                  className="w-0 opacity-0
-            group-hover:opacity-100 
-            group-hover:w-24
-            // group-hover:が必要なのは変化するものだけ
-            transition-all duration-300"
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={brownVolume}
-                  onChange={(e) => setBrownVolume(Number(e.target.value))}
-                />
+
+                {/*/ブラウンノイズボリューム調整アイコン justifyは横、itemsは縦 */}
+                {/* group-hover:が必要なのは変化するものだけ */}
+                <div className="group flex items-center gap-2">
+                  {/* 音アイコン */}
+                  <button
+                    onClick={handleMute}
+                    className="text-green-500 cursor-pointer">
+                    {isMute ?
+                      <VolumeX size={36} style={{ filter: "drop-shadow(0 0 4px #22c55e) drop-shadow(0 0 10px #22c55e)" }} /> :
+                      <Volume2 size={36} style={{ filter: "drop-shadow(0 0 4px #22c55e) drop-shadow(0 0 10px #22c55e)" }} />
+                    }
+                  </button>
+                  {/* ブラウンノイズのボリューム調整のスライダー */}
+                  <input
+                    className="w-0 opacity-0
+            group-hover:opacity-100
+            group-hover:w-28
+            transition-all duration-800
+            appearance-none cursor-pointer
+            [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent
+            [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:-mt-1 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-green-500 [&::-webkit-slider-thumb]:shadow-[0_0_6px_#22c55e,0_0_10px_#22c55e]
+            [&::-moz-range-track]:h-1 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent
+            [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:bg-green-500 [&::-moz-range-thumb]:shadow-[0_0_6px_#22c55e,0_0_10px_#22c55e]"
+                    style={{ background: `linear-gradient(to right, #22c55e ${brownVolume * 100}%, #3f3f46 ${brownVolume * 100}%)` }}
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={brownVolume}
+                    onChange={(e) => setBrownVolume(Number(e.target.value))}
+                  />
+                </div>
               </div>
             </div>
           }
