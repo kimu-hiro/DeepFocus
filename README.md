@@ -1,16 +1,31 @@
-# React + Vite
+# DeepFocus(ポモドーロ集中タイマー)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite + Tailwind CSSで作った、学習・休憩時間を記録できるポモドーロタイマーアプリです。単に動くものを作るだけでなく、実装中に出会った不具合や違和感を一つずつ解消しながら、設計の意図を理解することを意識して開発しました。
 
-Currently, two official plugins are available:
+## こだわった点・つまづいた点と対策
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+### ① 別タブを見ていると、タイマーが止まって見える問題
 
-## React Compiler
+最初は`setInterval`で1秒ごとに残り時間を1ずつ減らす、素直な作りにしていました。しかしブラウザは省電力のため、非アクティブなタブの`setInterval`を間引いたり遅らせたりする仕様があり、別のタブを見て戻ってくると時間がズレる・止まって見える、という問題が起きました。
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+対策として、「残り時間をカウントダウンする」発想から「終了予定時刻(絶対時刻)と現在時刻の差を毎回計算し直す」発想に設計を変更しました。具体的には、タイマー開始時に`終了時刻 = 今の時刻 + 残り秒数`を1回だけ保存しておき、画面表示のたびに`残り時間 = 終了時刻 - 現在時刻`を計算し直す形にしています。これにより、`setInterval`の間引きが起きても、タブを開き直した瞬間に正しい残り時間へ自動で追いつく仕組みになりました。
 
-## Expanding the ESLint configuration
+### ② 進捗を表す、減っていく円形のデザイン
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+タイマーの残り時間を、ただの数字だけでなくSVGで描いた円のリングでも視覚的に表現しています。これは画像ではなく`<circle>`という図形をコードで描画していて、`stroke-dasharray`(線を点線状に区切る長さ)と`stroke-dashoffset`(その点線をどれだけズラすか)という2つの値を、経過時間の割合に応じて動的に計算することで、「円がだんだん短くなっていく」ように見せています。
+
+### ③ ネオン風の光るデザイン
+
+CSSの`filter: drop-shadow()`を、ぼかし具合(blur radius)を変えて2回重ねて適用することで、輪郭のはっきりした光と、その外側に広がるぼんやりした光の2層を作り、ネオンサインのような質感を表現しました。
+
+### ④ 状態(state)の扱いに苦労した点
+
+Reactでは「画面に表示する値」と「裏側で管理しておきたい値」を分けて考える必要があり、最初は両者を混同して不具合を量産しました。例えば、一時停止した瞬間の残り時間を、画面の再描画に影響させずに保持しておきたい場合は`useState`ではなく`useRef`を使う、画面表示用の「現在のモード(work/break)」とは別に「どの画面を見せているか(タイマー/ダッシュボード)」という状態を分けて持つ、など、目的に応じて状態の持たせ方を使い分ける感覚を、実装しながら身につけていきました。
+
+### ⑤ アイコンボタンの導入
+
+当初は「再生」「一時停止」「リセット」といったテキストのボタンでしたが、`lucide-react`というアイコンライブラリを導入し、SVGベースのアイコンに置き換えました。画像(PNG)ではなくSVGを選んだのは、CSSで色を自由に変更できるためです。これにより、work(赤)/break(緑)それぞれのテーマカラーに合わせてアイコンの色やネオン風の光彩効果を簡単に切り替えられるようにしました。
+
+### ⑥ work/breakで重複していたコードの整理
+
+work画面とbreak画面は、色とタイマーの種類が違うだけで、ほぼ同じ構造のコード(タイトル・円形プログレスバー・ボタン・音量調整UI)が100行以上まるごと重複していました。この重複に気づいてからは、1つの関数(`renderTimerPanel`)にまとめ、work/breakの違いは関数に渡す1つの値だけで切り替えられるように整理しました。結果としてコード量を大きく減らしつつ、今後の変更も1箇所直すだけで両方に反映されるようになりました。
