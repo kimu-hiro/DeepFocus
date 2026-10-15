@@ -563,7 +563,7 @@ function App() {
 
       {
         confirmAction && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black/50">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             <div className="bg-white p-6 rounded shadow-lg flex flex-col gap-3 max-w-xs text-gray-800">
               <p>
                 今までの{mode === "work" ? "集中" : "休憩"}時間を記録しますか？
