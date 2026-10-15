@@ -69,10 +69,6 @@ function App() {
   //false => 停止する時に入れた時間が入る。
   const remainingTime = isRunning ? Math.max(0, Math.floor((endTime - Date.now()) / 1000)) :
     (pausedTimeRef.current ?? (mode === "work" ? workTime : breakTime));
-  const minutesMaterial = Math.trunc(remainingTime / 60);
-  const secondsMaterial = remainingTime % 60;
-  const minutes = String(minutesMaterial).padStart(2, "0");
-  const seconds = String(secondsMaterial).padStart(2, "0");
   const beep = new Audio(beepSound);
 
   //useRef系だが、remainingTimeより後に書かなければバグが出るためここに書いてある。
@@ -188,12 +184,10 @@ function App() {
 
   // タブを閉じる直前に実行する処理をまとめた関数
   useEffect(() => {
-    // ブラウザに「タブを閉じる直前にhandleBeforeUnloadを実行して」と登録する
     window.addEventListener('beforeunload', handleBeforeUnload);
-    // useEffectが再実行される直前に古いリスナーを削除する(クリーンアップ関数)
-    // 削除しないと同じリスナーが何個も重複して使われてしまうため
+    // クリーンアップ関数(削除しないと同じリスナーが何個も重複して使われてしまうため)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []); // これらが変わるたびにremainingTimeRefを箱に入れ直す。
+  }, []);
 
 
   //画面を更新するためのuseEffect
@@ -244,7 +238,6 @@ function App() {
         setRecords(newRecords);
       }
     }
-    else { }
   }, [tick]);
 
 
@@ -284,7 +277,7 @@ function App() {
     if (prevModeRef.current === "break" && mode === "work" && isRunning) {
       setIsBeeping(true);
       if (Notification.permission === "granted") {
-        new Notification("休憩時間がが終わりました");
+        new Notification("休憩時間が終わりました");
       }
     }
     //次回のレンダリング時のために、前回のmodeを箱に手動で入れ直してやってる。
@@ -445,7 +438,7 @@ function App() {
                 </button> :
 
                 <button className="text-red-500 cursor-pointer" onClick={(() => {
-                  handlePause(remainingTime);
+                  handlePause();
                 })}>
                   <Pause size={40} style={{ filter: "drop-shadow(0 0 4px #ef4444) drop-shadow(0 0 10px #ef4444)" }} />
                 </button>
