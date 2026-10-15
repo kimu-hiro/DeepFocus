@@ -14,7 +14,7 @@ function Practice() {
     };
     useEffect(() => {
         window.addEventListener('beforeunload', closeOrRenew);
-        return () => windows.removeEventListener('beforeunload', closeOrRenew);
+        return () => window.removeEventListener('beforeunload', closeOrRenew);
     }, []);
 
 

@@ -381,7 +381,7 @@ function App() {
         <>
           {mode === "work" && <div>
             {/* title */}
-            <h1>PomodoroTimer</h1>
+            <h1>DeepFocus</h1>
 
 
             <h1>workTime</h1>
@@ -500,7 +500,7 @@ function App() {
           }{
             mode === "break" && <div>
               {/* ここにbreak時の画面を描く */}
-              <h1>pomodoroTimer</h1>
+              <h1>DeepFocus</h1>
               <h1>breakTime</h1>
               <div>
                 <img className="w-16 h-16" src={breakIcon} />
