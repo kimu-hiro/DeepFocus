@@ -462,103 +462,131 @@ function App() {
   };
 
 
+  //ここからタブのための機能⬇
+  // それぞれのネオンタブの色の指定
+  const WORK_TAB_NEON = "border-red-500 shadow-[0_6px_10px_-4px_#ef4444] [text-shadow:0_0_6px_#ef4444,0_0_12px_#ef4444]";
+  const BREAK_TAB_NEON = "border-green-500 shadow-[0_6px_10px_-4px_#22c55e] [text-shadow:0_0_6px_#22c55e,0_0_12px_#22c55e]";
+  const DASHBOARD_TAB_NEON = "border-blue-500 shadow-[0_6px_10px_-4px_#3b82f6] [text-shadow:0_0_6px_#3b82f6,0_0_12px_#3b82f6]";
+  const PRACTICE_TAB_NEON = "border-yellow-500 shadow-[0_6px_10px_-4px_#eab308] [text-shadow:0_0_6px_#eab308,0_0_12px_#eab308]";
+
+  //上記4つのタブで同じ見た目を使い回すため、クラス名づくりを1か所にまとめる
+  const getNeonTabClassName = (isSelected, neonClassName) => {
+    const baseClassName = "w-1/4 py-3 border-b-2 font-bold cursor-pointer transition-all duration-300";
+    if (isSelected) return `${baseClassName} border-transparent bg-neutral-800 text-neutral-500`;
+    return `${baseClassName} ${neonClassName}`;
+  };
+  //タブが選ばれているか。workとbreakはタイマー画面にいるときだけ選ばれている扱い
+  const isWorkTabSelected = mode === "work" && view === "timer";
+  const isBreakTabSelected = mode === "break" && view === "timer";
+  const isDashboardTabSelected = view === "dashBoard";
+  const isPracticeTabSelected = view === "practice";
+  //ここまでタブのための機能⬆
+
+
   return (
     <div className="background min-h-screen bg-neutral-950 text-white" onClick={() => { handleBeepStop() }}>
-
-      <button onClick={() => {
-        if (mode !== "work") {
-          const elapsed = breakTime - remainingTime;
-          if (elapsed <= 1) {
-            setMode("work");
-            setIsRunning(false);
-            pausedTimeRef.current = null;
-          } else {
-            setConfirmAction({ type: "switchMode", targetMode: "work" });
+      {/* navタグはWebページ内で他のページやページ内の主要な場所へ移動するためのタグ */}
+      <nav className='flex border-b border-neutral-800'>
+        <button onClick={() => {
+          if (mode !== "work") {
+            const elapsed = breakTime - remainingTime;
+            if (elapsed <= 1) {
+              setMode("work");
+              setIsRunning(false);
+              pausedTimeRef.current = null;
+            } else {
+              setConfirmAction({ type: "switchMode", targetMode: "work" });
+            }
           }
-        }
-        setView("timer");
-      }}
-        className={mode === "work" && view === "timer" ? "bg-gray-700" : "bg-red-500"}
-      >workTime</button>
-      <button onClick={() => {
-        if (mode !== "break") {
-          const elapsed = workTime - remainingTime;
-          if (elapsed <= 1) {
-            setMode("break");
-            setIsRunning(false);
-            pausedTimeRef.current = null;
-          } else {
-            setConfirmAction({ type: "switchMode", targetMode: "break" });
+          setView("timer");
+        }}
+          className={getNeonTabClassName(isWorkTabSelected, WORK_TAB_NEON)}
+        >workTime</button>
+        <button onClick={() => {
+          if (mode !== "break") {
+            const elapsed = workTime - remainingTime;
+            if (elapsed <= 1) {
+              setMode("break");
+              setIsRunning(false);
+              pausedTimeRef.current = null;
+            } else {
+              setConfirmAction({ type: "switchMode", targetMode: "break" });
+            }
           }
-        }
-        setView("timer")
-      }}
-        className={mode === "break" && view === "timer" ? "bg-gray-700" : "bg-green-500"}
-      >breakTime</button>
+          setView("timer")
+        }}
+          className={getNeonTabClassName(isBreakTabSelected, BREAK_TAB_NEON)}
+        >breakTime</button>
 
-      <button onClick={() => {
-        setView("dashBoard");
-      }}
+        <button onClick={() => {
+          setView("dashBoard");
+        }}
 
-        className={view === "dashBoard" ? "bg-gray-700" : "bg-blue-500"}
-      >dashBoard</button>
+          className={getNeonTabClassName(isDashboardTabSelected, DASHBOARD_TAB_NEON)}
+        >dashBoard</button>
 
-      <button onClick={() => {
-        setView("practice");
-      }}
-        className={view === "practice" ? "bg-gray-700" : "bg-yellow-500"}
-      >practice</button>
+        <button onClick={() => {
+          setView("practice");
+        }}
+          className={getNeonTabClassName(isPracticeTabSelected, PRACTICE_TAB_NEON)}
+        >practice</button>
 
-      {view === "timer" && (
-        <>
-          {mode === "work" && renderTimerPanel("work")}
-          {mode === "break" && renderTimerPanel("break")}
-        </>
-      )}
-      {view === "dashBoard" && <div className="p-6">
-        <h2 className="text-xl font-bold mb-4">ダッシュボード</h2>
-        <div className="flex gap-12">
-          <div>
-            <h3 className="font-bold mb-2">学習時間</h3>
-            <p className="mb-3">
-              総学習時間 : {Math.floor(totalStudyTime / 3600)}時間{Math.floor((totalStudyTime % 3600) / 60)}分{totalStudyTime % 60}秒
-            </p>
-            <div className="space-y-1">
-              {records
-                .filter((record) => record.studyTime !== undefined)
-                // recordsはstate本体なので直接reverseすると壊れる。
-                // sliceでコピーを作ってから、コピーの方をreverseしてる。
-                // records自体は追加された順（古い→新しい）に並んでるので、
-                // 逆順にするだけで新しい記録が上に来る。
-                .slice()
-                .reverse()
-                .map((record, index) => (
-                  <div key={index}>
-                    {record.recordDate} : {Math.floor(record.studyTime / 60)}分{Math.floor(record.studyTime % 60)}秒
-                  </div>
-                ))}
+      </nav>
+
+      {
+        view === "timer" && (
+          <>
+            {mode === "work" && renderTimerPanel("work")}
+            {mode === "break" && renderTimerPanel("break")}
+          </>
+        )
+      }
+      {
+        view === "dashBoard" && <div className="p-6">
+          <h2 className="text-xl font-bold mb-4">ダッシュボード</h2>
+          <div className="flex gap-12">
+            <div>
+              <h3 className="font-bold mb-2">学習時間</h3>
+              <p className="mb-3">
+                総学習時間 : {Math.floor(totalStudyTime / 3600)}時間{Math.floor((totalStudyTime % 3600) / 60)}分{totalStudyTime % 60}秒
+              </p>
+              <div className="space-y-1">
+                {records
+                  .filter((record) => record.studyTime !== undefined)
+                  // recordsはstate本体なので直接reverseすると壊れる。
+                  // sliceでコピーを作ってから、コピーの方をreverseしてる。
+                  // records自体は追加された順（古い→新しい）に並んでるので、
+                  // 逆順にするだけで新しい記録が上に来る。
+                  .slice()
+                  .reverse()
+                  .map((record, index) => (
+                    <div key={index}>
+                      {record.recordDate} : {Math.floor(record.studyTime / 60)}分{Math.floor(record.studyTime % 60)}秒
+                    </div>
+                  ))}
+              </div>
             </div>
-          </div>
-          <div>
-            <h3 className="font-bold mb-2">休憩時間</h3>
-            <p className="mb-3">
-              総休憩時間 : {Math.floor(totalRestTime / 3600)}時間{Math.floor((totalRestTime % 3600) / 60)}分{totalRestTime % 60}秒
-            </p>
-            <div className="space-y-1">
-              {records
-                .filter((record) => record.restTime !== undefined)
-                // 学習時間側と同じ理由でコピーしてからreverseしてる。
-                .slice()
-                .reverse()
-                .map((record, index) => (
-                  <div key={index}>
-                    {record.recordDate} : {Math.floor(record.restTime / 60)}分{Math.floor(record.restTime % 60)}秒
-                  </div>
-                ))}
+            <div>
+              <h3 className="font-bold mb-2">休憩時間</h3>
+              <p className="mb-3">
+                総休憩時間 : {Math.floor(totalRestTime / 3600)}時間{Math.floor((totalRestTime % 3600) / 60)}分{totalRestTime % 60}秒
+              </p>
+              <div className="space-y-1">
+                {records
+                  .filter((record) => record.restTime !== undefined)
+                  // 学習時間側と同じ理由でコピーしてからreverseしてる。
+                  .slice()
+                  .reverse()
+                  .map((record, index) => (
+                    <div key={index}>
+                      {record.recordDate} : {Math.floor(record.restTime / 60)}分{Math.floor(record.restTime % 60)}秒
+                    </div>
+                  ))}
+              </div>
             </div>
           </div>
         </div>
-      </div>}
+      }
       {view === "practice" && <div className="p-6"><Practice /></div>}
 
       {
