@@ -6,12 +6,13 @@ import brownNoise from "./assets/brownNoise.mp3"
 import './index.css'
 import Practice from './Practice.jsx'
 import { Play, Pause, Square, Volume2, VolumeX } from "lucide-react"
+import ConfirmDialog from './components/ConfirmDialog.jsx'
+
+
 //リセット時に「今までの集中時間を記録しますか？」
 //[記録する] [記録しない] [戻る]というダイアログを出させる。
 //現在は記録しないようにしている。
 //モード（work⇔break）切り替え時も同じダイアログ出させる。
-
-
 function App() {
   //設定時間（秒） ユーザーが設定した作業時間/休憩時間
   const [workTime, setWorkTime] = useState(25 * 60);
@@ -588,30 +589,14 @@ function App() {
         </div>
       }
       {view === "practice" && <div className="p-6"><Practice /></div>}
-
-      {
-        confirmAction && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="bg-white p-6 rounded shadow-lg flex flex-col gap-3 max-w-xs text-gray-800">
-              <p>
-                今までの{mode === "work" ? "集中" : "休憩"}時間を記録しますか？
-              </p>
-              <button
-                className="px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600 cursor-pointer"
-                onClick={saveAndRun}
-              >これまでの{mode === "work" ? "集中" : "休憩"}時間を記録する</button>
-              <button
-                className="px-4 py-2 rounded bg-gray-300 text-gray-800 hover:bg-gray-400 cursor-pointer"
-                onClick={runWithoutSaving}
-              >これまでの{mode === "work" ? "集中" : "休憩"}時間を記録しない</button>
-              <button
-                className="px-4 py-2 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 cursor-pointer"
-                onClick={() => setConfirmAction(null)}
-              >戻る</button>
-            </div>
-          </div>
-        )
-      }
+      {confirmAction && (
+        <ConfirmDialog
+          mode={mode}
+          onSave={saveAndRun}
+          onSkip={runWithoutSaving}
+          onCancel={() => setConfirmAction(null)}
+        />
+      )}
     </div >
 
 
