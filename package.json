@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "deploy": "vite build && sftp juwepi@85.131.246.41 < deploy.sftp"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",
