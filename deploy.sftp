@@ -1,0 +1,19 @@
+# 公開先に dist/ の中身を送るための、sftp の台本。
+# npm run deploy から使う（手で送るやり方は 手順書/02_デプロイする.md）。
+# 行の頭の「-」は、失敗しても止まらずに次の行へ進む印
+# （消すファイルがもう無いときに、そこで止まらないようにするため）。
+
+lcd dist
+cd public_html/DeepFocus
+
+# 古いプログラム・見た目・音を消す（build のたびに名前が変わるので、残すとたまっていく）
+-rm assets/index-*.js
+-rm assets/index-*.css
+-rm assets/brownNoise-*
+
+put index.html
+put assets/index-*.js assets/
+put assets/index-*.css assets/
+put assets/brownNoise-*.m4a assets/
+
+ls assets
