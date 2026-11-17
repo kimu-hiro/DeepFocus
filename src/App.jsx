@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import beepSound from "./assets/beepSound.mp3"
-import brownNoise from "./assets/brownNoise.mp3"
+//2分だけの音を loop でくり返す（55分・94MBの元ファイルは重くて、公開先で鳴らないことがあったため）
+import brownNoise from "./assets/brownNoise.m4a"
 import './index.css'
 import Practice from './Practice.jsx'
 import ConfirmDialog from './components/ConfirmDialog.jsx'
@@ -279,6 +280,7 @@ function App() {
   useEffect(() => {
     const brown = brownRef.current;
     brownRef.current.volume = brownVolume;
+    brown.loop = true;
     if (isMute === true || brownVolume === 0 || !isRunning || mode !== "work") {
       brown.pause();
       brown.currentTime = 0;
